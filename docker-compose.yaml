@@ -1,0 +1,18 @@
+
+
+
+services:
+  home_web_socket:
+    network_mode: "host"
+    build: .
+    container_name: home_web_socket
+    environment:
+      CONFIG_FILE: /run/secrets/config.json
+    volumes:
+      - .:/app  # Mount current directory to /app in the container
+    env_file:
+      - .env 
+    restart: always  # Restart if the container crashes
+    command: ["python", "-u", "index.py"]
+    privileged: true
+
