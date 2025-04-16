@@ -10,7 +10,7 @@ CURRENT_STATE: CurrentState = None
 PRIORITY_QUEUE: PriorityQueue = None
 
 
-MQTT_BROKER = "192.168.1.14"  # Change to your Mosquitto broker's IP
+MQTT_BROKER = "mosquitto"  # Change to your Mosquitto broker's IP
 MQTT_PORT = 1883  # Use 8883 for TLS # Topic to subscribe to
 MQTT_TOPIC_PUB = "irrigation/request"  # Topic to publish messages
 MQTT_TOPIC_STOP_PUB = "irrigation/stop"
