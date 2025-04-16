@@ -10,7 +10,7 @@ CURRENT_STATE: CurrentState = None
 PRIORITY_QUEUE: PriorityQueue = None
 
 
-MQTT_BROKER = "mosquitto"  # Change to your Mosquitto broker's IP
+MQTT_BROKER = "192.168.1.14"  # Change to your Mosquitto broker's IP
 MQTT_PORT = 1883  # Use 8883 for TLS # Topic to subscribe to
 MQTT_TOPIC_PUB = "irrigation/request"  # Topic to publish messages
 MQTT_TOPIC_STOP_PUB = "irrigation/stop"
@@ -73,8 +73,9 @@ mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
 
 
 # WebSocket Server
-async def websocket_handler(websocket, path):
+async def websocket_handler(websocket):
     """Handle new WebSocket connections."""
+    print("Here -------------")
     websocket_clients.add(websocket)
     print(f"New WebSocket Connection: {websocket.remote_address}")
     print(CURRENT_STATE)
@@ -106,6 +107,7 @@ async def websocket_handler(websocket, path):
     except websockets.exceptions.ConnectionClosed:
         print(f"WebSocket Disconnected: {websocket.remote_address}")
     finally:
+        print("DISONCECEOINC")
         websocket_clients.remove(websocket)
 
 
