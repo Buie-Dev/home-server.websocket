@@ -9,7 +9,7 @@ services:
     build: .
     container_name: home_web_socket
     ports:
-      - 1883:1883
+      - 8765:8765
     networks:
       - home-server
     environment:
