@@ -6,4 +6,6 @@ load_dotenv()
 
 
 class Config:
-    MQTT_BROKER = os.getenv("MQTT_BROKER")  # Default to "localhost" if not found
+    MQTT_BROKER = os.getenv("MQTT_BROKER")
+    JWT_SECRET = os.getenv("JWT_SECRET")
+    DEVICE_NAME = os.getenv("DEVICE_NAME", "irrigation_webserver")

@@ -5,11 +5,13 @@ networks:
     external: true
 
 services:
-  home_web_socket:
+  websocket:
     build: .
-    container_name: home_web_socket
+    container_name: websocket
     ports:
       - 8765:8765
+    expose:
+      - 8765
     networks:
       - home-server
     environment:

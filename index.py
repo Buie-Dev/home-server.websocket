@@ -1,25 +1,56 @@
 import asyncio
 import websockets
 import json
+import jwt
+import time
 import paho.mqtt.client as mqtt
+from urllib.parse import urlparse, parse_qs
 from ObjectTypes import PriorityQueue, CurrentState
 from config.config import Config
+
+INTERNAL_PREFIXES = ("192.168.1.", "172.", "127.", "192.168.65.")
+
+
+def is_internal_ip(ip: str) -> bool:
+    return any(ip.startswith(prefix) for prefix in INTERNAL_PREFIXES)
+
+
+def authenticate(websocket) -> bool:
+    ip = websocket.remote_address[0]
+    if is_internal_ip(ip):
+        return True
+
+    parsed = urlparse(websocket.path)
+    params = parse_qs(parsed.query)
+    token_list = params.get("token", [])
+    if not token_list:
+        return False
+
+    try:
+        jwt.decode(token_list[0], Config.JWT_SECRET, algorithms=["HS256"])
+        return True
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+        return False
 
 # MQTT Configuration
 CURRENT_STATE: CurrentState = None
 PRIORITY_QUEUE: PriorityQueue = None
 
 
-MQTT_BROKER = "mosquitto"  # Change to your Mosquitto broker's IP
-MQTT_PORT = 1883  # Use 8883 for TLS # Topic to subscribe to
+MQTT_PORT = 1883
 MQTT_TOPIC_PUB = "irrigation/request"  # Topic to publish messages
 MQTT_TOPIC_STOP_PUB = "irrigation/stop"
 MQTT_TOPIC_SUB_IRRIGATION_STOP_ALL = "irrigation/stopAll"
 MQTT_TOPIC_SUB_CURRENT_STATE = "irrigation/currentState"  # Topic to publish messages
 MQTT_TOPIC_SUB_PRIORITY_QUEUE_STATE = "irrigation/queue"
+MQTT_TOPIC_HEALTHCHECK_REQUEST = "healthcheck/request"
+MQTT_TOPIC_HEALTHCHECK_RESPONSE = "healthcheck/response"
+MQTT_TOPIC_LIVE_FLOW = "irrigation/liveFlow"
 
 WEBBROKER_TOPIC_CURRENT_STATE = "current"
 WEBBROKER_TOPIC_PRIORITY_QUEUE = "priorityQueue"
+WEBBROKER_TOPIC_HEALTHCHECK_RESPONSE = "healthcheck/response"
+WEBBROKER_TOPIC_LIVE_FLOW = "liveFlow"
 
 
 # Store connected WebSocket clients
@@ -43,6 +74,9 @@ def on_connect(client, userdata, flags, rc):
     print(f"Connected to MQTT Broker with result code {rc}")
     client.subscribe(MQTT_TOPIC_SUB_CURRENT_STATE)
     client.subscribe(MQTT_TOPIC_SUB_PRIORITY_QUEUE_STATE)
+    client.subscribe(MQTT_TOPIC_HEALTHCHECK_RESPONSE)
+    client.subscribe(MQTT_TOPIC_HEALTHCHECK_REQUEST)
+    client.subscribe(MQTT_TOPIC_LIVE_FLOW)
 
 
 def on_message(client, userdata, msg):
@@ -59,9 +93,17 @@ def on_message(client, userdata, msg):
     if topic == MQTT_TOPIC_SUB_CURRENT_STATE:
         CURRENT_STATE = msg.payload.decode()
         web_socket_topic = WEBBROKER_TOPIC_CURRENT_STATE
-    if topic == MQTT_TOPIC_SUB_PRIORITY_QUEUE_STATE:
+    elif topic == MQTT_TOPIC_SUB_PRIORITY_QUEUE_STATE:
         PRIORITY_QUEUE = msg.payload.decode()
         web_socket_topic = WEBBROKER_TOPIC_PRIORITY_QUEUE
+    elif topic == MQTT_TOPIC_HEALTHCHECK_RESPONSE:
+        web_socket_topic = WEBBROKER_TOPIC_HEALTHCHECK_RESPONSE
+    elif topic == MQTT_TOPIC_LIVE_FLOW:
+        web_socket_topic = WEBBROKER_TOPIC_LIVE_FLOW
+    elif topic == MQTT_TOPIC_HEALTHCHECK_REQUEST:
+        payload = json.dumps({"device": Config.DEVICE_NAME})
+        client.publish(MQTT_TOPIC_HEALTHCHECK_RESPONSE, payload)
+        return
 
     print(f"Boradcasting: Topic {web_socket_topic}: {message}")
     asyncio.run(broadcast_message(web_socket_topic, message))
@@ -69,12 +111,16 @@ def on_message(client, userdata, msg):
 
 mqtt_client.on_connect = on_connect
 mqtt_client.on_message = on_message
-mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
 
 
 # WebSocket Server
 async def websocket_handler(websocket):
     """Handle new WebSocket connections."""
+    if not authenticate(websocket):
+        print(f"Unauthorized WebSocket connection from {websocket.remote_address}")
+        await websocket.close(1008, "Unauthorized")
+        return
+
     print("Here -------------")
     websocket_clients.add(websocket)
     print(f"New WebSocket Connection: {websocket.remote_address}")
@@ -98,11 +144,13 @@ async def websocket_handler(websocket):
             topic = data.get("topic")
             payload = json.dumps(data.get("message"))
             if topic == "request":
-                mqtt_client.publish(MQTT_TOPIC_PUB, payload)  # Forward to MQTT
+                mqtt_client.publish(MQTT_TOPIC_PUB, payload)
             elif topic == "stop":
                 mqtt_client.publish(MQTT_TOPIC_STOP_PUB, payload)
             elif topic == "stopAll":
                 mqtt_client.publish(MQTT_TOPIC_SUB_IRRIGATION_STOP_ALL, payload)
+            elif topic == MQTT_TOPIC_HEALTHCHECK_REQUEST:
+                mqtt_client.publish(MQTT_TOPIC_HEALTHCHECK_REQUEST, payload)
 
     except websockets.exceptions.ConnectionClosed:
         print(f"WebSocket Disconnected: {websocket.remote_address}")
@@ -119,5 +167,12 @@ async def start_websocket_server():
 
 # Run everything
 if __name__ == "__main__":
+    while True:
+        try:
+            mqtt_client.connect(Config.MQTT_BROKER, MQTT_PORT, 60)
+            break
+        except Exception as e:
+            print(f"MQTT connect failed: {e} — retrying in 5s...")
+            time.sleep(5)
     mqtt_client.loop_start()  # Start MQTT in background
     asyncio.run(start_websocket_server())  # Start WebSocket server

@@ -1,4 +1,5 @@
-websockets 
-paho-mqtt 
+websockets
+paho-mqtt
 asyncio
 python-dotenv
+PyJWT
