@@ -6,7 +6,9 @@ networks:
 
 services:
   websocket:
-    build: .
+    build:
+      context: .
+      network: host
     container_name: websocket
     ports:
       - 8765:8765
