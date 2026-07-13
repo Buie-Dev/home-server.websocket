@@ -18,6 +18,7 @@ services:
       - home-server
     environment:
       CONFIG_FILE: /run/secrets/config.json
+      TZ: America/Vancouver
     volumes:
       - .:/app  # Mount current directory to /app in the container
     env_file:

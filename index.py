@@ -151,6 +151,8 @@ async def websocket_handler(websocket):
                 mqtt_client.publish(MQTT_TOPIC_SUB_IRRIGATION_STOP_ALL, payload)
             elif topic == MQTT_TOPIC_HEALTHCHECK_REQUEST:
                 mqtt_client.publish(MQTT_TOPIC_HEALTHCHECK_REQUEST, payload)
+            elif topic.startswith("rowing/"):
+                await broadcast_message(topic, data.get("message"))
 
     except websockets.exceptions.ConnectionClosed:
         print(f"WebSocket Disconnected: {websocket.remote_address}")
