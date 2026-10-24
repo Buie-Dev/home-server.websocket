@@ -59,6 +59,9 @@ WEBBROKER_TOPIC_LIVE_FLOW = "liveFlow"
 # Store connected WebSocket clients
 websocket_clients = set()
 
+# Event loop reference, set in __main__ for thread-safe MQTT→asyncio bridging
+loop = None
+
 # Initialize MQTT Client
 mqtt_client = mqtt.Client()
 
@@ -68,7 +71,7 @@ async def broadcast_message(topic: str, message: object):
     """Send a message to all connected WebSocket clients."""
     if websocket_clients:
         data = json.dumps({"topic": topic, "message": message})
-        await asyncio.wait([ws.send(data) for ws in websocket_clients])
+        await asyncio.gather(*(ws.send(data) for ws in websocket_clients))
 
 
 # MQTT Callbacks
@@ -83,21 +86,19 @@ def on_connect(client, userdata, flags, rc):
 
 
 def on_message(client, userdata, msg):
+    """Handle incoming MQTT messages and forward them to WebSocket clients."""
     global CURRENT_STATE
     global PRIORITY_QUEUE
-    """Handle incoming MQTT messages and forward them to WebSocket clients."""
-    print("onMessage")
 
     topic = msg.topic
     message = msg.payload.decode()
-    print(f"MQTT Message Received: Topic {topic}: {message}")
-    web_socket_topic = ""
+    web_socket_topic = None
 
     if topic == MQTT_TOPIC_SUB_CURRENT_STATE:
-        CURRENT_STATE = msg.payload.decode()
+        CURRENT_STATE = message
         web_socket_topic = WEBBROKER_TOPIC_CURRENT_STATE
     elif topic == MQTT_TOPIC_SUB_PRIORITY_QUEUE_STATE:
-        PRIORITY_QUEUE = msg.payload.decode()
+        PRIORITY_QUEUE = message
         web_socket_topic = WEBBROKER_TOPIC_PRIORITY_QUEUE
     elif topic == MQTT_TOPIC_HEALTHCHECK_RESPONSE:
         web_socket_topic = WEBBROKER_TOPIC_HEALTHCHECK_RESPONSE
@@ -108,8 +109,8 @@ def on_message(client, userdata, msg):
         client.publish(MQTT_TOPIC_HEALTHCHECK_RESPONSE, payload)
         return
 
-    print(f"Boradcasting: Topic {web_socket_topic}: {message}")
-    asyncio.run(broadcast_message(web_socket_topic, message))
+    if web_socket_topic is not None:
+        asyncio.run_coroutine_threadsafe(broadcast_message(web_socket_topic, message), loop)
 
 
 mqtt_client.on_connect = on_connect
@@ -175,5 +176,7 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"MQTT connect failed: {e} — retrying in 5s...")
             time.sleep(5)
-    mqtt_client.loop_start()  # Start MQTT in background
-    asyncio.run(start_websocket_server())  # Start WebSocket server
+    mqtt_client.loop_start()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(start_websocket_server())
