@@ -32,6 +32,7 @@ def authenticate(websocket) -> bool:
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         return False
 
+
 # MQTT Configuration
 CURRENT_STATE: CurrentState = None
 PRIORITY_QUEUE: PriorityQueue = None
@@ -127,14 +128,10 @@ async def websocket_handler(websocket):
     print(CURRENT_STATE)
     print(PRIORITY_QUEUE)
     if CURRENT_STATE != None:
-        data = json.dumps(
-            {"topic": WEBBROKER_TOPIC_CURRENT_STATE, "message": CURRENT_STATE}
-        )
+        data = json.dumps({"topic": WEBBROKER_TOPIC_CURRENT_STATE, "message": CURRENT_STATE})
         await websocket.send(data)
     if PRIORITY_QUEUE != None:
-        data = json.dumps(
-            {"topic": WEBBROKER_TOPIC_PRIORITY_QUEUE, "message": PRIORITY_QUEUE}
-        )
+        data = json.dumps({"topic": WEBBROKER_TOPIC_PRIORITY_QUEUE, "message": PRIORITY_QUEUE})
         await websocket.send(data)
 
     try:

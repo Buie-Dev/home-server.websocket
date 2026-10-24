@@ -127,7 +127,9 @@ class TestWebsocketHandler:
     @pytest.mark.asyncio
     @patch("index.mqtt_client")
     @patch("index.authenticate", return_value=True)
-    async def test_healthcheck_request_published_to_mqtt(self, mock_auth, mock_mqtt, mock_websocket):
+    async def test_healthcheck_request_published_to_mqtt(
+        self, mock_auth, mock_mqtt, mock_websocket
+    ):
         index.CURRENT_STATE = None
         index.PRIORITY_QUEUE = None
         index.websocket_clients = set()
