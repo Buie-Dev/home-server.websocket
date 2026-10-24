@@ -1,12 +1,14 @@
 import asyncio
-import websockets
 import json
-import jwt
 import time
+from urllib.parse import parse_qs, urlparse
+
+import jwt
 import paho.mqtt.client as mqtt
-from urllib.parse import urlparse, parse_qs
-from ObjectTypes import PriorityQueue, CurrentState
+import websockets
+
 from config.config import Config
+from ObjectTypes import CurrentState, PriorityQueue
 
 INTERNAL_PREFIXES = ("192.168.1.", "172.", "127.", "192.168.65.")
 
@@ -127,10 +129,10 @@ async def websocket_handler(websocket):
     print(f"New WebSocket Connection: {websocket.remote_address}")
     print(CURRENT_STATE)
     print(PRIORITY_QUEUE)
-    if CURRENT_STATE != None:
+    if CURRENT_STATE is not None:
         data = json.dumps({"topic": WEBBROKER_TOPIC_CURRENT_STATE, "message": CURRENT_STATE})
         await websocket.send(data)
-    if PRIORITY_QUEUE != None:
+    if PRIORITY_QUEUE is not None:
         data = json.dumps({"topic": WEBBROKER_TOPIC_PRIORITY_QUEUE, "message": PRIORITY_QUEUE})
         await websocket.send(data)
 

@@ -1,8 +1,9 @@
-import jwt
 import time
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-from index import is_internal_ip, authenticate
+import jwt
+
+from index import authenticate, is_internal_ip
 
 
 class TestIsInternalIp:

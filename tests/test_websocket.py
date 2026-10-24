@@ -1,9 +1,10 @@
 import json
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
 
 import index
-from index import websocket_handler, broadcast_message
+from index import broadcast_message, websocket_handler
 
 
 class TestBroadcastMessage:

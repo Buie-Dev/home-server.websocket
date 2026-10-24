@@ -1,5 +1,5 @@
 import json
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import MagicMock, patch
 
 import index
 from index import on_connect, on_message
