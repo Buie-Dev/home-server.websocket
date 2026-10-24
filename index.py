@@ -76,8 +76,6 @@ async def broadcast_message(topic: str, message: object):
 
 # MQTT Callbacks
 def on_connect(client, userdata, flags, rc):
-    global CURRENT_STATE
-    print(f"Connected to MQTT Broker with result code {rc}")
     client.subscribe(MQTT_TOPIC_SUB_CURRENT_STATE)
     client.subscribe(MQTT_TOPIC_SUB_PRIORITY_QUEUE_STATE)
     client.subscribe(MQTT_TOPIC_HEALTHCHECK_RESPONSE)
@@ -121,15 +119,10 @@ mqtt_client.on_message = on_message
 async def websocket_handler(websocket):
     """Handle new WebSocket connections."""
     if not authenticate(websocket):
-        print(f"Unauthorized WebSocket connection from {websocket.remote_address}")
         await websocket.close(1008, "Unauthorized")
         return
 
-    print("Here -------------")
     websocket_clients.add(websocket)
-    print(f"New WebSocket Connection: {websocket.remote_address}")
-    print(CURRENT_STATE)
-    print(PRIORITY_QUEUE)
     if CURRENT_STATE is not None:
         data = json.dumps({"topic": WEBBROKER_TOPIC_CURRENT_STATE, "message": CURRENT_STATE})
         await websocket.send(data)
@@ -140,7 +133,6 @@ async def websocket_handler(websocket):
     try:
         async for message in websocket:
             data = json.loads(message)
-            print(f"Received from WebSocket: {message}")
             topic = data.get("topic")
             payload = json.dumps(data.get("message"))
             if topic == "request":
@@ -155,9 +147,8 @@ async def websocket_handler(websocket):
                 await broadcast_message(topic, data.get("message"))
 
     except websockets.exceptions.ConnectionClosed:
-        print(f"WebSocket Disconnected: {websocket.remote_address}")
+        pass
     finally:
-        print("DISONCECEOINC")
         websocket_clients.remove(websocket)
 
 
